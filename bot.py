@@ -3,7 +3,7 @@ import aiosqlite
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
@@ -81,14 +81,14 @@ async def start(message: Message):
             await add_referral(referrer_id)
 
     # Создаём персональную ссылку
-    link = await create_start_link(bot, str(user_id), encode=False)
+    link = f"https://t.me/StableDropBot?start={user_id}"
 
     # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка "Поделиться"
+    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка Поделиться
     builder.adjust(1)
 
     text = f"""
