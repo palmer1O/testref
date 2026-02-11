@@ -87,6 +87,13 @@ async def start(message: Message):
 
     link = await create_start_link(bot, str(user_id), encode=False)
 
+    # ================= Кнопки =================
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📊 Прогресс", callback_data="btn_stats")
+    builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
+    builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
+    builder.adjust(1)  # 1 кнопка в ряд
+
     text = f"""
 🔥 StableDrop
 
@@ -102,23 +109,41 @@ async def start(message: Message):
 
 Ваша ссылка:
 {link}
-
-Команды:
-/stats — прогресс
-/access — получить доступ
-/wallet — указать адрес
 """
-    await message.answer(text)
 
-# ================= STATS =================
+    await message.answer(text, reply_markup=builder.as_markup())
 
-@dp.message(Command("stats"))
-async def stats(message: Message):
-    user = await get_user(message.from_user.id)
+# ================= CALLBACK КНОПКИ =================
+
+@dp.callback_query(F.data == "btn_stats")
+async def callback_stats(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
     if not user:
-        return await message.answer("Сначала нажмите /start")
+        return await callback.message.answer("Сначала нажмите /start")
     referrals = user[2]
-    await message.answer(f"👥 Приглашено: {referrals}/{REQUIRED_REFERRALS}")
+    await callback.message.answer(f"👥 Приглашено: {referrals}/{REQUIRED_REFERRALS}")
+    await callback.answer()
+
+@dp.callback_query(F.data == "btn_access")
+async def callback_access(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    referrals = user[2]
+    if referrals < REQUIRED_REFERRALS and callback.from_user.id != ADMIN_ID:
+        await callback.message.answer(f"❌ Нужно ещё {REQUIRED_REFERRALS - referrals} приглашений.")
+        await callback.answer()
+        return
+    await give_access(callback.message)
+    await callback.answer()
+
+@dp.callback_query(F.data == "btn_wallet")
+async def callback_wallet(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    if not user or user[3] == 0:
+        await callback.message.answer("Сначала получите доступ в группу.")
+        await callback.answer()
+        return
+    await callback.message.answer("Введите ваш USDT адрес в сети TON:")
+    await callback.answer()
 
 # ================= ACCESS =================
 
@@ -142,29 +167,7 @@ async def give_access(message: Message):
     await set_joined(user_id)
     await message.answer(f"✅ Доступ открыт!\n\n{invite.invite_link}")
 
-@dp.message(Command("access"))
-async def access(message: Message):
-    user = await get_user(message.from_user.id)
-    referrals = user[2]
-    if referrals < REQUIRED_REFERRALS and message.from_user.id != ADMIN_ID:
-        return await message.answer(f"❌ Нужно ещё {REQUIRED_REFERRALS - referrals} приглашений.")
-    await give_access(message)
-
-# ================= WALLET =================
-
-@dp.message(Command("wallet"))
-async def wallet_button(message: Message):
-    user = await get_user(message.from_user.id)
-    if not user or user[3] == 0:
-        return await message.answer("Сначала получите доступ в группу.")
-    builder = InlineKeyboardBuilder()
-    builder.button(text="💳 Указать USDT адрес", callback_data="set_wallet")
-    await message.answer("Нажмите кнопку и отправьте USDT (TON) адрес:", reply_markup=builder.as_markup())
-
-@dp.callback_query(F.data == "set_wallet")
-async def ask_wallet(callback: CallbackQuery):
-    await callback.message.answer("Введите ваш USDT адрес в сети TON:")
-    await callback.answer()
+# ================= SAVE WALLET =================
 
 @dp.message()
 async def save_wallet_message(message: Message):
@@ -177,7 +180,7 @@ async def save_wallet_message(message: Message):
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
-# ================= СКРЫТАЯ АДМИН-КОМАНДА =================
+# ================= АДМИН-КОМАНДА =================
 
 @dp.message(Command("alluser"))
 async def alluser(message: Message):
