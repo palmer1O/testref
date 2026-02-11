@@ -7,7 +7,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
-
 BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
 GROUP_ID = -1003609007517
 ADMIN_ID = 5113023867
@@ -19,7 +18,6 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 # ================= DATABASE =================
-
 async def init_db():
     async with aiosqlite.connect("database.db") as db:
         await db.execute("""
@@ -65,7 +63,6 @@ async def count_joined():
             return result[0]
 
 # ================= START =================
-
 @dp.message(Command("start"))
 async def start(message: Message):
     args = message.text.split()
@@ -92,7 +89,7 @@ async def start(message: Message):
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.adjust(1)  # 1 кнопка в ряд
+    builder.adjust(1)
 
     text = f"""
 🔥 StableDrop
@@ -114,25 +111,14 @@ async def start(message: Message):
     await message.answer(text, reply_markup=builder.as_markup())
 
 # ================= CALLBACK КНОПКИ =================
-
 @dp.callback_query(F.data == "btn_stats")
 async def callback_stats(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
     if not user:
-        return await callback.message.answer("Сначала нажмите /start")
-    referrals = user[2]
-    await callback.message.answer(f"👥 Приглашено: {referrals}/{REQUIRED_REFERRALS}")
-    await callback.answer()
-
-@dp.callback_query(F.data == "btn_access")
-async def callback_access(callback: CallbackQuery):
-    user = await get_user(callback.from_user.id)
-    referrals = user[2]
-    if referrals < REQUIRED_REFERRALS and callback.from_user.id != ADMIN_ID:
-        await callback.message.answer(f"❌ Нужно ещё {REQUIRED_REFERRALS - referrals} приглашений.")
-        await callback.answer()
-        return
-    await give_access(callback.message)
+        await callback.message.answer("Сначала нажмите /start")
+    else:
+        referrals = user[2]
+        await callback.message.answer(f"👥 Приглашено: {referrals}/{REQUIRED_REFERRALS}")
     await callback.answer()
 
 @dp.callback_query(F.data == "btn_wallet")
@@ -140,35 +126,41 @@ async def callback_wallet(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
     if not user or user[3] == 0:
         await callback.message.answer("Сначала получите доступ в группу.")
-        await callback.answer()
-        return
-    await callback.message.answer("Введите ваш USDT адрес в сети TON:")
+    else:
+        await callback.message.answer("Введите ваш USDT адрес в сети TON:")
+    await callback.answer()
+
+@dp.callback_query(F.data == "btn_access")
+async def callback_access(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    referrals = user[2]
+
+    if referrals < REQUIRED_REFERRALS and callback.from_user.id != ADMIN_ID:
+        await callback.message.answer(f"❌ Нужно ещё {REQUIRED_REFERRALS - referrals} приглашений.")
+    else:
+        await give_access_user(callback.from_user.id, callback.message.answer)
     await callback.answer()
 
 # ================= ACCESS =================
-
-async def give_access(message: Message):
-    user_id = message.from_user.id
+async def give_access_user(user_id, send_func):
     user = await get_user(user_id)
 
-    # Админ может проходить всегда
-    if user[3] and message.from_user.id != ADMIN_ID:
-        return await message.answer("Вы уже получили доступ.")
+    if user[3] and user_id != ADMIN_ID:
+        return await send_func("Вы уже получили доступ.")
 
     total = await count_joined()
-    if total >= MAX_USERS and message.from_user.id != ADMIN_ID:
-        return await message.answer("❌ Лимит участников достигнут.")
+    if total >= MAX_USERS and user_id != ADMIN_ID:
+        return await send_func("❌ Лимит участников достигнут.")
 
     try:
         invite = await bot.create_chat_invite_link(chat_id=GROUP_ID, member_limit=1)
     except Exception as e:
-        return await message.answer(f"❌ Не удалось создать ссылку. Ошибка: {e}")
+        return await send_func(f"❌ Не удалось создать ссылку. Ошибка: {e}")
 
     await set_joined(user_id)
-    await message.answer(f"✅ Доступ открыт!\n\n{invite.invite_link}")
+    await send_func(f"✅ Доступ открыт!\n\n{invite.invite_link}")
 
 # ================= SAVE WALLET =================
-
 @dp.message()
 async def save_wallet_message(message: Message):
     user = await get_user(message.from_user.id)
@@ -181,15 +173,13 @@ async def save_wallet_message(message: Message):
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
 # ================= АДМИН-КОМАНДА =================
-
 @dp.message(Command("alluser"))
 async def alluser(message: Message):
     if message.from_user.id != ADMIN_ID:
         return
-    await give_access(message)
+    await give_access_user(message.from_user.id, message.answer)
 
 # ================= RUN =================
-
 async def main():
     await init_db()
     await dp.start_polling(bot)
