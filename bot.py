@@ -80,10 +80,10 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
-    # Создаем персональную реферальную ссылку
+    # Персональная реферальная ссылка
     referral_link = f"https://t.me/StableDropBot?start={user_id}"
     
-    # Ссылка для кнопки "Поделиться" (открывает список чатов)
+    # Ссылка для кнопки "Поделиться"
     share_text = f"🔥 Присоединяйтесь к StableDrop и получите 50 USDT! {referral_link}"
     share_url = f"https://t.me/share/url?url={referral_link}&text={urllib.parse.quote(share_text)}"
 
@@ -92,7 +92,7 @@ async def start(message: Message):
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.button(text="📤 Поделиться ссылкой", url=share_url)
+    builder.button(text="📤 Поделиться с друзьями", url=share_url)
     builder.adjust(1)
 
     text = f"""
@@ -111,7 +111,6 @@ async def start(message: Message):
 Ваша ссылка (копируйте, чтобы приглашать друзей):
 {referral_link}
 """
-
     await message.answer(text, reply_markup=builder.as_markup())
 
 # ================= CALLBACK КНОПКИ =================
@@ -142,7 +141,6 @@ async def callback_access(callback: CallbackQuery):
 # ================= ACCESS =================
 async def give_access_user(user_id, send_func):
     user = await get_user(user_id)
-
     if user[3] and user_id != ADMIN_ID:
         return await send_func("Вы уже получили доступ.")
 
