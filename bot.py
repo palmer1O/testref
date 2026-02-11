@@ -1,10 +1,10 @@
 import asyncio
 import aiosqlite
-import urllib.parse
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
+from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
 BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
@@ -80,19 +80,15 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
-    # Персональная реферальная ссылка
-    referral_link = f"https://t.me/StableDropBot?start={user_id}"
-    
-    # Ссылка для кнопки "Поделиться"
-    share_text = f"🔥 Присоединяйтесь к StableDrop и получите 50 USDT! {referral_link}"
-    share_url = f"https://t.me/share/url?url={referral_link}&text={urllib.parse.quote(share_text)}"
+    # Создаём персональную ссылку
+    link = await create_start_link(bot, str(user_id), encode=False)
 
     # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.button(text="📤 Поделиться с друзьями", url=share_url)
+    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка "Поделиться"
     builder.adjust(1)
 
     text = f"""
@@ -109,8 +105,9 @@ async def start(message: Message):
 2. После выполнения условий укажите USDT-адрес в сети TON
 
 Ваша ссылка (копируйте, чтобы приглашать друзей):
-{referral_link}
+{link}
 """
+
     await message.answer(text, reply_markup=builder.as_markup())
 
 # ================= CALLBACK КНОПКИ =================
@@ -141,6 +138,7 @@ async def callback_access(callback: CallbackQuery):
 # ================= ACCESS =================
 async def give_access_user(user_id, send_func):
     user = await get_user(user_id)
+
     if user[3] and user_id != ADMIN_ID:
         return await send_func("Вы уже получили доступ.")
 
@@ -159,8 +157,6 @@ async def give_access_user(user_id, send_func):
 # ================= SAVE WALLET =================
 @dp.message()
 async def save_wallet_message(message: Message):
-    if message.text.startswith("/"):
-        return
     user = await get_user(message.from_user.id)
     if not user or user[3] == 0:
         return
