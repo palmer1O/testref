@@ -3,15 +3,13 @@ import aiosqlite
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
 BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
 GROUP_ID = -1003609007517
 ADMIN_ID = 5113023867
-
-REQUIRED_REFERRALS = 5
 MAX_USERS = 2000
 
 bot = Bot(token=BOT_TOKEN)
@@ -82,6 +80,7 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
+    # Создаём персональную ссылку
     link = await create_start_link(bot, str(user_id), encode=False)
 
     # ================= Кнопки =================
@@ -89,6 +88,7 @@ async def start(message: Message):
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
+    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка "Поделиться"
     builder.adjust(1)
 
     text = f"""
@@ -98,13 +98,13 @@ async def start(message: Message):
 • 50 USDT за участие
 • 30 USDT за каждого приглашённого (максимум 5)
 • До 200 USDT суммарно
+• Рефералы опциональны: увеличивают дроп, но доступ в группу не блокируют
 
 📌 Чтобы получить дроп:
-1. Пригласите {REQUIRED_REFERRALS} друзей
-2. Получите доступ в закрытую группу
-3. После выполнения условий укажите USDT-адрес в сети TON
+1. Получите доступ в закрытую группу
+2. После выполнения условий укажите USDT-адрес в сети TON
 
-Ваша ссылка:
+Ваша ссылка (копируйте, чтобы приглашать друзей):
 {link}
 """
 
@@ -118,7 +118,7 @@ async def callback_stats(callback: CallbackQuery):
         await callback.message.answer("Сначала нажмите /start")
     else:
         referrals = user[2]
-        await callback.message.answer(f"👥 Приглашено: {referrals}/{REQUIRED_REFERRALS}")
+        await callback.message.answer(f"👥 Приглашено друзей: {referrals}")
     await callback.answer()
 
 @dp.callback_query(F.data == "btn_wallet")
@@ -132,13 +132,7 @@ async def callback_wallet(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "btn_access")
 async def callback_access(callback: CallbackQuery):
-    user = await get_user(callback.from_user.id)
-    referrals = user[2]
-
-    if referrals < REQUIRED_REFERRALS and callback.from_user.id != ADMIN_ID:
-        await callback.message.answer(f"❌ Нужно ещё {REQUIRED_REFERRALS - referrals} приглашений.")
-    else:
-        await give_access_user(callback.from_user.id, callback.message.answer)
+    await give_access_user(callback.from_user.id, callback.message.answer)
     await callback.answer()
 
 # ================= ACCESS =================
