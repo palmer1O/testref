@@ -80,25 +80,19 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
-    # 1. Создаём персональную реферальную ссылку
+    # Создаем персональную реферальную ссылку
     referral_link = f"https://t.me/StableDropBot?start={user_id}"
     
-    # 2. Создаем текст для функции "Поделиться"
-    share_msg = "Участвуй в StableDrop и получи 50 USDT! 🚀"
-    
-    # 3. Формируем специальную ссылку t.me/share
-    # urllib.parse.quote используется для корректной передачи текста с пробелами и эмодзи
-    share_url = f"https://t.me{referral_link}&text={urllib.parse.quote(share_msg)}"
+    # Ссылка для кнопки "Поделиться" (открывает список чатов)
+    share_text = f"🔥 Присоединяйтесь к StableDrop и получите 50 USDT! {referral_link}"
+    share_url = f"https://t.me/share/url?url={referral_link}&text={urllib.parse.quote(share_text)}"
 
     # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    
-    # Новая кнопка "Поделиться", которая открывает выбор чатов
-    builder.button(text="📤 Поделиться с друзьями", url=share_url) 
-    
+    builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
 
     text = f"""
@@ -167,18 +161,14 @@ async def give_access_user(user_id, send_func):
 # ================= SAVE WALLET =================
 @dp.message()
 async def save_wallet_message(message: Message):
-    # Если это команда, не обрабатываем как кошелек
     if message.text.startswith("/"):
         return
-        
     user = await get_user(message.from_user.id)
     if not user or user[3] == 0:
         return
-    
     wallet = message.text.strip()
     if len(wallet) < 10:
         return
-        
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
