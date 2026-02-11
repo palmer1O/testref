@@ -1,10 +1,10 @@
 import asyncio
 import aiosqlite
+import urllib.parse
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
 BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
@@ -80,15 +80,25 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
-    # Создаём персональную ссылку
-    link = f"https://t.me/StableDropBot?start={user_id}"
+    # 1. Создаём персональную реферальную ссылку
+    referral_link = f"https://t.me/StableDropBot?start={user_id}"
+    
+    # 2. Создаем текст для функции "Поделиться"
+    share_msg = "Участвуй в StableDrop и получи 50 USDT! 🚀"
+    
+    # 3. Формируем специальную ссылку t.me/share
+    # urllib.parse.quote используется для корректной передачи текста с пробелами и эмодзи
+    share_url = f"https://t.me{referral_link}&text={urllib.parse.quote(share_msg)}"
 
     # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка Поделиться
+    
+    # Новая кнопка "Поделиться", которая открывает выбор чатов
+    builder.button(text="📤 Поделиться с друзьями", url=share_url) 
+    
     builder.adjust(1)
 
     text = f"""
@@ -105,7 +115,7 @@ async def start(message: Message):
 2. После выполнения условий укажите USDT-адрес в сети TON
 
 Ваша ссылка (копируйте, чтобы приглашать друзей):
-{link}
+{referral_link}
 """
 
     await message.answer(text, reply_markup=builder.as_markup())
@@ -157,12 +167,18 @@ async def give_access_user(user_id, send_func):
 # ================= SAVE WALLET =================
 @dp.message()
 async def save_wallet_message(message: Message):
+    # Если это команда, не обрабатываем как кошелек
+    if message.text.startswith("/"):
+        return
+        
     user = await get_user(message.from_user.id)
     if not user or user[3] == 0:
         return
+    
     wallet = message.text.strip()
     if len(wallet) < 10:
         return
+        
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
