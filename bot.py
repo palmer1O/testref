@@ -141,9 +141,9 @@ async def callback_wallet(callback: CallbackQuery):
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     elif user[3] == 0:
-        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес $")
+        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес USDT")
     else:
-        await callback.message.answer("Введите ваш адрес $ в сети TON:")
+        await callback.message.answer("Введите ваш адрес USDT в сети TON:")
     await callback.answer()
 
 # ================= СОХРАНЕНИЕ АДРЕСА =================
