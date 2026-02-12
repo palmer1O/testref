@@ -1,9 +1,10 @@
 import asyncio
 import aiosqlite
+import urllib.parse
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
@@ -36,12 +37,18 @@ async def get_user(user_id):
 
 async def add_user(user_id, referrer_id=None):
     async with aiosqlite.connect("database.db") as db:
-        await db.execute("INSERT OR IGNORE INTO users (user_id, referrer_id) VALUES (?, ?)", (user_id, referrer_id))
+        await db.execute(
+            "INSERT OR IGNORE INTO users (user_id, referrer_id) VALUES (?, ?)",
+            (user_id, referrer_id)
+        )
         await db.commit()
 
 async def add_referral(referrer_id):
     async with aiosqlite.connect("database.db") as db:
-        await db.execute("UPDATE users SET referrals = referrals + 1 WHERE user_id=?", (referrer_id,))
+        await db.execute(
+            "UPDATE users SET referrals = referrals + 1 WHERE user_id=?",
+            (referrer_id,)
+        )
         await db.commit()
 
 async def set_joined(user_id):
@@ -80,15 +87,23 @@ async def start(message: Message):
         if referrer_id:
             await add_referral(referrer_id)
 
-    # Создаём персональную ссылку
+    # Персональная реферальная ссылка
     link = await create_start_link(bot, str(user_id), encode=False)
 
-    # ================= Кнопки =================
+    # ===== ССЫЛКА ДЛЯ КНОПКИ "ПОДЕЛИТЬСЯ" =====
+    share_text = f"🔥 Присоединяйся к StableDrop и получи до 200 USDT!\n\n{link}"
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
+    )
+
+    # ================= КНОПКИ =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
-    builder.button(text="📤 Поделиться ссылкой", url=link)  # кнопка "Поделиться"
+    builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
 
     text = f"""
@@ -98,13 +113,13 @@ async def start(message: Message):
 • 50 USDT за участие
 • 30 USDT за каждого приглашённого (максимум 5)
 • До 200 USDT суммарно
-• Рефералы опциональны: увеличивают дроп, но доступ в группу не блокируют
+• Рефералы опциональны: увеличивают дроп
 
 📌 Чтобы получить дроп:
 1. Получите доступ в закрытую группу
-2. После выполнения условий укажите USDT-адрес в сети TON
+2. Укажите USDT-адрес в сети TON
 
-Ваша ссылка (копируйте, чтобы приглашать друзей):
+Ваша ссылка:
 {link}
 """
 
@@ -117,8 +132,7 @@ async def callback_stats(callback: CallbackQuery):
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     else:
-        referrals = user[2]
-        await callback.message.answer(f"👥 Приглашено друзей: {referrals}")
+        await callback.message.answer(f"👥 Приглашено друзей: {user[2]}")
     await callback.answer()
 
 @dp.callback_query(F.data == "btn_wallet")
@@ -147,22 +161,30 @@ async def give_access_user(user_id, send_func):
         return await send_func("❌ Лимит участников достигнут.")
 
     try:
-        invite = await bot.create_chat_invite_link(chat_id=GROUP_ID, member_limit=1)
+        invite = await bot.create_chat_invite_link(
+            chat_id=GROUP_ID,
+            member_limit=1
+        )
     except Exception as e:
-        return await send_func(f"❌ Не удалось создать ссылку. Ошибка: {e}")
+        return await send_func(f"❌ Ошибка создания ссылки: {e}")
 
     await set_joined(user_id)
     await send_func(f"✅ Доступ открыт!\n\n{invite.invite_link}")
 
-# ================= SAVE WALLET =================
+# ================= СОХРАНЕНИЕ КОШЕЛЬКА =================
 @dp.message()
 async def save_wallet_message(message: Message):
+    if message.text.startswith("/"):
+        return
+
     user = await get_user(message.from_user.id)
     if not user or user[3] == 0:
         return
+
     wallet = message.text.strip()
     if len(wallet) < 10:
         return
+
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
