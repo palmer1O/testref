@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
-BOT_TOKEN = "PASTE_NEW_TOKEN_HERE"
+BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
 GROUP_ID = -1003609007517
 ADMIN_ID = 5113023867
 MAX_USERS = 2000
@@ -69,7 +69,9 @@ async def save_wallet(user_id, wallet):
 
 async def count_joined():
     async with aiosqlite.connect("database.db") as db:
-        async with db.execute("SELECT COUNT(*) FROM users WHERE joined=1") as cursor:
+        async with db.execute(
+            "SELECT COUNT(*) FROM users WHERE joined=1"
+        ) as cursor:
             result = await cursor.fetchone()
             return result[0]
 
@@ -85,23 +87,31 @@ async def start(message: Message):
         if len(args) > 1:
             try:
                 referrer_id = int(args[1])
-                if referrer_id != user_id:
-                    await add_referral(referrer_id)
-                else:
+                if referrer_id == user_id:
                     referrer_id = None
             except:
                 pass
 
         await add_user(user_id, referrer_id)
 
+        if referrer_id:
+            await add_referral(referrer_id)
+
+    # Персональная ссылка
     link = await create_start_link(bot, str(user_id), encode=False)
 
-    # ✅ Правильный шаринг — одна ссылка снизу
-    share_text = f"""🔥 Присоединяйся к StableDrop и получи до 200 USDT!
+    # Ссылка для шаринга (открывает выбор чатов Telegram)
+    # Текст для шаринга (ссылка строго снизу)
+share_text = f"""🔥 Присоединяйся к StableDrop и получи до 200 USDT!
 
 {link}"""
 
-    share_url = "https://t.me/share/url?text=" + urllib.parse.quote(share_text)
+# Передаём только text=
+share_url = (
+    "https://t.me/share/url?"
+    f"text={urllib.parse.quote(share_text)}"
+)
+
 
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
@@ -155,7 +165,7 @@ async def callback_access(callback: CallbackQuery):
     await give_access_user(callback.from_user.id, callback.message.answer)
     await callback.answer()
 
-# ================= ДОСТУП =================
+# ================= ACCESS =================
 async def give_access_user(user_id, send_func):
     user = await get_user(user_id)
 
@@ -194,7 +204,7 @@ async def save_wallet_message(message: Message):
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
-# ================= АДМИН ДОСТУП =================
+# ================= АДМИН-КОМАНДА =================
 @dp.message(Command("alluser"))
 async def alluser(message: Message):
     if message.from_user.id != ADMIN_ID:
