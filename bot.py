@@ -108,7 +108,7 @@ async def start(message: Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="Моя выплата", callback_data="btn_stats")
     builder.button(text="Вступить в группу", url=group_url)
-    builder.button(text="💳 Указать адрес $", callback_data="btn_wallet")
+    builder.button(text="💳 Указать адрес USDT ($)", callback_data="btn_wallet")
     builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
 
@@ -148,9 +148,9 @@ async def callback_wallet(callback: CallbackQuery):
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     elif user[3] == 0:
-        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес $")
+        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес USDT ($)")
     else:
-        await callback.message.answer("Введите ваш адрес $ в сети TON:")
+        await callback.message.answer("Введите ваш адрес USDT в сети TON:")
     await callback.answer()
 
 # ================= СОХРАНЕНИЕ АДРЕСА =================
