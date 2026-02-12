@@ -104,8 +104,8 @@ async def start(message: Message):
     share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
     share_url = (
         "https://t.me/share/url?"
-        f"&text={urllib.parse.quote(share_text)}"
         f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
     )
 
     builder = InlineKeyboardBuilder()
