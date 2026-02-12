@@ -8,13 +8,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
-BOT_TOKEN = "PASTE_NEW_TOKEN_HERE"
-GROUP_LINK = "https://t.me/your_private_group_link"
+BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
+GROUP_ID = -1003609007517
 ADMIN_ID = 5113023867
-
-BASE_REWARD = 50
-REF_REWARD = 30
-MAX_REF = 5
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -27,6 +23,7 @@ async def init_db():
             user_id INTEGER PRIMARY KEY,
             referrer_id INTEGER,
             referrals INTEGER DEFAULT 0,
+            joined INTEGER DEFAULT 0,
             wallet TEXT
         )
         """)
@@ -53,6 +50,14 @@ async def add_referral(referrer_id):
         )
         await db.commit()
 
+async def set_joined(user_id):
+    async with aiosqlite.connect("database.db") as db:
+        await db.execute(
+            "UPDATE users SET joined=1 WHERE user_id=?",
+            (user_id,)
+        )
+        await db.commit()
+
 async def save_wallet(user_id, wallet):
     async with aiosqlite.connect("database.db") as db:
         await db.execute(
@@ -60,6 +65,14 @@ async def save_wallet(user_id, wallet):
             (wallet, user_id)
         )
         await db.commit()
+
+async def count_joined():
+    async with aiosqlite.connect("database.db") as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM users WHERE joined=1"
+        ) as cursor:
+            result = await cursor.fetchone()
+            return result[0]
 
 # ================= START =================
 @dp.message(Command("start"))
@@ -73,26 +86,29 @@ async def start(message: Message):
         if len(args) > 1:
             try:
                 referrer_id = int(args[1])
-                if referrer_id != user_id:
-                    await add_referral(referrer_id)
-                else:
+                if referrer_id == user_id:
                     referrer_id = None
             except:
                 pass
-
         await add_user(user_id, referrer_id)
+        if referrer_id:
+            await add_referral(referrer_id)
 
+    # Персональная ссылка
     link = await create_start_link(bot, str(user_id), encode=False)
 
-    share_text = f"""🔥 Присоединяйся к StableDrop и получи до 200 USDT!
+    # Ссылка для шаринга
+    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
+    )
 
-{link}"""
-
-    share_url = "https://t.me/share/url?text=" + urllib.parse.quote(share_text)
-
+    # Кнопки
     builder = InlineKeyboardBuilder()
-    builder.button(text="💰 Моя награда", callback_data="btn_stats")
-    builder.button(text="🚀 Вступить в группу", url=GROUP_LINK)
+    builder.button(text="Моя выплата", callback_data="btn_stats")
+    builder.button(text="Вступить в группу", url=f"https://t.me/c/{str(GROUP_ID)[4:]}")
     builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
     builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
@@ -100,69 +116,60 @@ async def start(message: Message):
     text = f"""
 🔥 StableDrop
 
-💰 Условия:
-• 50 USDT за участие
-• 30 USDT за каждого приглашённого (максимум 5)
-
 📌 Чтобы получить дроп:
-— Достаточно вступить в закрытую группу
+1. Вступите в закрытую группу
 
-📈 Приглашайте друзей, чтобы увеличить вашу награду
+Приглашайте друзей, чтобы увеличить вашу выплату!
 
-Ваша ссылка:
+Ваша ссылка для приглашений:
 {link}
 """
 
     await message.answer(text, reply_markup=builder.as_markup())
 
-# ================= МОЯ НАГРАДА =================
+# ================= CALLBACKS =================
 @dp.callback_query(F.data == "btn_stats")
 async def callback_stats(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
-
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     else:
-        referrals = min(user[2], MAX_REF)
-        total_reward = BASE_REWARD + referrals * REF_REWARD
-
+        referrals = user[2]
+        payout = referrals * 30 + 50  # 50 за участие, +30 за каждого
         await callback.message.answer(
-            f"""💰 Ваша статистика
-
-👥 Приглашено: {user[2]}
-💵 Начислено: {total_reward} USDT"""
+            f"👥 Приглашено друзей: {referrals}\n💰 Возможная выплата: {payout} USDT"
         )
+    await callback.answer()
 
+@dp.callback_query(F.data == "btn_wallet")
+async def callback_wallet(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    if not user or user[3] == 0:
+        await callback.message.answer("Сначала вступите в группу.")
+    else:
+        await callback.message.answer("Введите ваш USDT адрес в сети TON:")
     await callback.answer()
 
 # ================= СОХРАНЕНИЕ КОШЕЛЬКА =================
-@dp.callback_query(F.data == "btn_wallet")
-async def callback_wallet(callback: CallbackQuery):
-    await callback.message.answer("Введите ваш USDT адрес в сети TON:")
-    await callback.answer()
-
 @dp.message()
 async def save_wallet_message(message: Message):
     if message.text.startswith("/"):
         return
-
     user = await get_user(message.from_user.id)
-    if not user:
+    if not user or user[3] == 0:
         return
-
     wallet = message.text.strip()
     if len(wallet) < 10:
         return
-
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
-# ================= АДМИН ДОСТУП =================
+# ================= АДМИН-КОМАНДА =================
 @dp.message(Command("alluser"))
 async def alluser(message: Message):
     if message.from_user.id != ADMIN_ID:
         return
-    await message.answer("Админ-доступ активирован.")
+    await message.answer("Админская команда выполнена")
 
 # ================= RUN =================
 async def main():
