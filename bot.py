@@ -91,12 +91,12 @@ async def start(message: Message):
     link = await create_start_link(bot, str(user_id), encode=False)
 
     # ===== ССЫЛКА ДЛЯ КНОПКИ "ПОДЕЛИТЬСЯ" =====
-    share_text = f"🔥 Присоединяйся к StableDrop и получи до 200 USDT!\n\n{link}"
-    share_url = (
-        "https://t.me/share/url?"
-        f"url={urllib.parse.quote(link)}"
-        f"&text={urllib.parse.quote(share_text)}"
-    )
+    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
+share_url = (
+    "https://t.me/share/url?"
+    f"url={urllib.parse.quote(link)}"
+    f"&text={urllib.parse.quote(share_text)}"
+)
 
     # ================= КНОПКИ =================
     builder = InlineKeyboardBuilder()
