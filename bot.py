@@ -66,14 +66,6 @@ async def save_wallet(user_id, wallet):
         )
         await db.commit()
 
-async def count_joined():
-    async with aiosqlite.connect("database.db") as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM users WHERE joined=1"
-        ) as cursor:
-            result = await cursor.fetchone()
-            return result[0]
-
 # ================= START =================
 @dp.message(Command("start"))
 async def start(message: Message):
@@ -98,18 +90,18 @@ async def start(message: Message):
     link = await create_start_link(bot, str(user_id), encode=False)
 
     # Ссылка для шаринга
-    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
+    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 $!"
     share_url = (
         "https://t.me/share/url?"
         f"url={urllib.parse.quote(link)}"
         f"&text={urllib.parse.quote(share_text)}"
     )
 
-    # Кнопки
+    # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="Моя выплата", callback_data="btn_stats")
     builder.button(text="Вступить в группу", url=f"https://t.me/c/{str(GROUP_ID)[4:]}")
-    builder.button(text="💳 Указать USDT адрес", callback_data="btn_wallet")
+    builder.button(text="💳 Указать адрес USDT ($)", callback_data="btn_wallet")
     builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
 
@@ -124,7 +116,6 @@ async def start(message: Message):
 Ваша ссылка для приглашений:
 {link}
 """
-
     await message.answer(text, reply_markup=builder.as_markup())
 
 # ================= CALLBACKS =================
@@ -134,23 +125,28 @@ async def callback_stats(callback: CallbackQuery):
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     else:
-        referrals = user[2]
-        payout = referrals * 30 + 50  # 50 за участие, +30 за каждого
-        await callback.message.answer(
-            f"👥 Приглашено друзей: {referrals}\n💰 Возможная выплата: {payout} USDT"
-        )
+        if user[3] == 0:
+            await callback.message.answer("👥 Вы ещё не в группе. Текущая выплата: 0 $")
+        else:
+            referrals = user[2]
+            payout = 50 + referrals * 30  # 50 за участие + 30 за каждого приглашённого
+            await callback.message.answer(
+                f"👥 Приглашено друзей: {referrals}\n💰 Текущая выплата: {payout} $"
+            )
     await callback.answer()
 
 @dp.callback_query(F.data == "btn_wallet")
 async def callback_wallet(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
-    if not user or user[3] == 0:
-        await callback.message.answer("Сначала вступите в группу.")
+    if not user:
+        await callback.message.answer("Сначала нажмите /start")
+    elif user[3] == 0:
+        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес $")
     else:
-        await callback.message.answer("Введите ваш USDT адрес в сети TON:")
+        await callback.message.answer("Введите ваш адрес $ в сети TON:")
     await callback.answer()
 
-# ================= СОХРАНЕНИЕ КОШЕЛЬКА =================
+# ================= СОХРАНЕНИЕ АДРЕСА =================
 @dp.message()
 async def save_wallet_message(message: Message):
     if message.text.startswith("/"):
