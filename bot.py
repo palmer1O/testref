@@ -32,10 +32,7 @@ async def init_db():
 
 async def get_user(user_id):
     async with aiosqlite.connect("database.db") as db:
-        async with db.execute(
-            "SELECT * FROM users WHERE user_id=?",
-            (user_id,)
-        ) as cursor:
+        async with db.execute("SELECT * FROM users WHERE user_id=?", (user_id,)) as cursor:
             return await cursor.fetchone()
 
 async def add_user(user_id, referrer_id=None):
@@ -96,23 +93,21 @@ async def start(message: Message):
                 pass
 
         await add_user(user_id, referrer_id)
+
         if referrer_id:
             await add_referral(referrer_id)
 
-    # персональная реферальная ссылка
+    # Персональная ссылка
     link = await create_start_link(bot, str(user_id), encode=False)
 
-    # ===== ТЕКСТ ДЛЯ ШАРИНГА (ОДНА ССЫЛКА СНИЗУ) =====
-    share_text = f"""🔥 Присоединяйся к StableDrop и получи до 200 USDT!
-
-{link}"""
-
+    # Ссылка для шаринга (открывает выбор чатов Telegram)
+    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
     share_url = (
         "https://t.me/share/url?"
-        f"text={urllib.parse.quote(share_text)}"
+        f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
     )
 
-    # ================= КНОПКИ =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
@@ -182,12 +177,12 @@ async def give_access_user(user_id, send_func):
             member_limit=1
         )
     except Exception as e:
-        return await send_func(f"❌ Ошибка создания ссылки: {e}")
+        return await send_func(f"❌ Ошибка доступа к группе: {e}")
 
     await set_joined(user_id)
     await send_func(f"✅ Доступ открыт!\n\n{invite.invite_link}")
 
-# ================= SAVE WALLET =================
+# ================= СОХРАНЕНИЕ КОШЕЛЬКА =================
 @dp.message()
 async def save_wallet_message(message: Message):
     if message.text.startswith("/"):
@@ -204,7 +199,7 @@ async def save_wallet_message(message: Message):
     await save_wallet(message.from_user.id, wallet)
     await message.answer("✅ Адрес сохранён. Ожидайте начисления.")
 
-# ================= АДМИН =================
+# ================= АДМИН-КОМАНДА =================
 @dp.message(Command("alluser"))
 async def alluser(message: Message):
     if message.from_user.id != ADMIN_ID:
