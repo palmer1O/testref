@@ -9,7 +9,7 @@ from aiogram.utils.deep_linking import create_start_link
 
 # ================= НАСТРОЙКИ =================
 BOT_TOKEN = "7964951860:AAH65UxfUC0xrj9In4njb0jbEpUfk-KDn9g"
-GROUP_ID = -1003609007517
+GROUP_ID = -1003609007517  # ваш приватный чат
 ADMIN_ID = 5113023867
 
 bot = Bot(token=BOT_TOKEN)
@@ -97,11 +97,18 @@ async def start(message: Message):
         f"&text={urllib.parse.quote(share_text)}"
     )
 
+    # Создаём инвайт-ссылку в группу
+    try:
+        invite = await bot.create_chat_invite_link(chat_id=GROUP_ID, member_limit=1)
+        group_url = invite.invite_link
+    except:
+        group_url = "https://t.me/joinchat/..."  # резервная ссылка
+
     # ================= Кнопки =================
     builder = InlineKeyboardBuilder()
     builder.button(text="Моя выплата", callback_data="btn_stats")
-    builder.button(text="Вступить в группу", url=f"https://t.me/c/{str(GROUP_ID)[4:]}")
-    builder.button(text="💳 Указать адрес USDT ($)", callback_data="btn_wallet")
+    builder.button(text="Вступить в группу", url=group_url)
+    builder.button(text="💳 Указать адрес $", callback_data="btn_wallet")
     builder.button(text="📤 Поделиться ссылкой", url=share_url)
     builder.adjust(1)
 
@@ -141,9 +148,9 @@ async def callback_wallet(callback: CallbackQuery):
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     elif user[3] == 0:
-        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес USDT")
+        await callback.message.answer("Сначала вступите в группу, чтобы указать адрес $")
     else:
-        await callback.message.answer("Введите ваш адрес USDT в сети TON:")
+        await callback.message.answer("Введите ваш адрес $ в сети TON:")
     await callback.answer()
 
 # ================= СОХРАНЕНИЕ АДРЕСА =================
