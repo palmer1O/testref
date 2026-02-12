@@ -53,17 +53,25 @@ async def add_referral(referrer_id):
 
 async def set_joined(user_id):
     async with aiosqlite.connect("database.db") as db:
-        await db.execute("UPDATE users SET joined=1 WHERE user_id=?", (user_id,))
+        await db.execute(
+            "UPDATE users SET joined=1 WHERE user_id=?",
+            (user_id,)
+        )
         await db.commit()
 
 async def save_wallet(user_id, wallet):
     async with aiosqlite.connect("database.db") as db:
-        await db.execute("UPDATE users SET wallet=? WHERE user_id=?", (wallet, user_id))
+        await db.execute(
+            "UPDATE users SET wallet=? WHERE user_id=?",
+            (wallet, user_id)
+        )
         await db.commit()
 
 async def count_joined():
     async with aiosqlite.connect("database.db") as db:
-        async with db.execute("SELECT COUNT(*) FROM users WHERE joined=1") as cursor:
+        async with db.execute(
+            "SELECT COUNT(*) FROM users WHERE joined=1"
+        ) as cursor:
             result = await cursor.fetchone()
             return result[0]
 
@@ -83,22 +91,23 @@ async def start(message: Message):
                     referrer_id = None
             except:
                 pass
+
         await add_user(user_id, referrer_id)
+
         if referrer_id:
             await add_referral(referrer_id)
 
-    # Персональная реферальная ссылка
+    # Персональная ссылка
     link = await create_start_link(bot, str(user_id), encode=False)
 
-    # ===== ССЫЛКА ДЛЯ КНОПКИ "ПОДЕЛИТЬСЯ" =====
+    # Ссылка для шаринга (открывает выбор чатов Telegram)
     share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
-share_url = (
-    "https://t.me/share/url?"
-    f"url={urllib.parse.quote(link)}"
-    f"&text={urllib.parse.quote(share_text)}"
-)
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
+    )
 
-    # ================= КНОПКИ =================
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
     builder.button(text="🔑 Доступ в группу", callback_data="btn_access")
@@ -113,26 +122,28 @@ share_url = (
 • 50 USDT за участие
 • 30 USDT за каждого приглашённого (максимум 5)
 • До 200 USDT суммарно
-• Рефералы опциональны: увеличивают дроп
+• Рефералы опциональны — увеличивают дроп
 
 📌 Чтобы получить дроп:
 1. Получите доступ в закрытую группу
-2. Укажите USDT-адрес в сети TON
+2. После выполнения условий укажите USDT-адрес в сети TON
 
-Ваша ссылка:
+Ваша ссылка (копируйте):
 {link}
 """
 
     await message.answer(text, reply_markup=builder.as_markup())
 
-# ================= CALLBACK КНОПКИ =================
+# ================= CALLBACKS =================
 @dp.callback_query(F.data == "btn_stats")
 async def callback_stats(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
     if not user:
         await callback.message.answer("Сначала нажмите /start")
     else:
-        await callback.message.answer(f"👥 Приглашено друзей: {user[2]}")
+        await callback.message.answer(
+            f"👥 Приглашено друзей: {user[2]}"
+        )
     await callback.answer()
 
 @dp.callback_query(F.data == "btn_wallet")
@@ -153,7 +164,7 @@ async def callback_access(callback: CallbackQuery):
 async def give_access_user(user_id, send_func):
     user = await get_user(user_id)
 
-    if user[3] and user_id != ADMIN_ID:
+    if user and user[3] and user_id != ADMIN_ID:
         return await send_func("Вы уже получили доступ.")
 
     total = await count_joined()
@@ -166,7 +177,7 @@ async def give_access_user(user_id, send_func):
             member_limit=1
         )
     except Exception as e:
-        return await send_func(f"❌ Ошибка создания ссылки: {e}")
+        return await send_func(f"❌ Ошибка доступа к группе: {e}")
 
     await set_joined(user_id)
     await send_func(f"✅ Доступ открыт!\n\n{invite.invite_link}")
