@@ -105,8 +105,7 @@ async def start(message: Message):
     share_url = (
         "https://t.me/share/url?"
         f"&text={urllib.parse.quote(share_text)}"
-        f"
-        url={urllib.parse.quote(link)}"
+        f"url={urllib.parse.quote(link)}"
     )
 
     builder = InlineKeyboardBuilder()
