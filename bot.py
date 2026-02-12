@@ -101,17 +101,12 @@ async def start(message: Message):
     link = await create_start_link(bot, str(user_id), encode=False)
 
     # Ссылка для шаринга (открывает выбор чатов Telegram)
-    # Текст для шаринга (ссылка строго снизу)
-share_text = f"""🔥 Присоединяйся к StableDrop и получи до 200 USDT!
-
-{link}"""
-
-# Передаём только text=
-share_url = (
-    "https://t.me/share/url?"
-    f"text={urllib.parse.quote(share_text)}"
-)
-
+    share_text = "🔥 Присоединяйся к StableDrop и получи до 200 USDT!"
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={urllib.parse.quote(link)}"
+        f"&text={urllib.parse.quote(share_text)}"
+    )
 
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Прогресс", callback_data="btn_stats")
